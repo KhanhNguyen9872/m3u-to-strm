@@ -17,13 +17,19 @@ def mkdir(folder):
 def replace_name(name):
 	return str(name.replace(":", "-").replace("|", "_").replace("?", "_").replace("<", "(").replace(">",")").replace("/", "_").replace("\\", "_").replace("*", "_").replace("\"", "'"))
 
-data_m3u = open(input('m3u file: '), 'rb').read().decode('utf8').split('\n')
-is_download_logo = (True if input("Add with Logo? [Y/n]: ").lower() == "y" else False)
+def download_logo(link, path, name, timeout):
+	if globals()["is_thread_download"]:
+		time.sleep(timeout)
+	open(path, 'wb').write(requests.get(link).content)
+	print(">> Downloaded Logo [{}]".format(name))
 
-working_dir = replace_name(str(datetime.datetime.now()).split('.')[0]).replace(" ", "_")
-mkdir(working_dir)
-os.chdir(working_dir)
+file_name = input('m3u file: ')
+data_m3u = open(file_name, 'rb').read().decode('utf8').split('\n')
+is_download_logo = (True if input("Add with logo? [Y/n]: ").lower() == "y" else False)
+if is_download_logo:
+	is_thread_download = (True if input("Download logo with multi thread? (Recommend: Y) [Y/n]: ").lower() == "y" else False)
 
+working_dir = replace_name("/".join(file_name.split('\\')).split("/")[-1].split(".")[0]) + "_" + replace_name(str(datetime.datetime.now()).split('.')[0]).replace(" ", "_")
 default_group = 'tvshows'
 
 switch_name_value = 0
@@ -70,30 +76,26 @@ for line in data_m3u:
 				else:
 					switch_name_value = 1
 	else:
-		single_data['tvg-url'] = line.replace('\r', '')
-		try:
-			single_data['group-title']
-		except KeyError:
-			single_data['group-title'] = default_group
-		try:
-			single_data['tvg-name']
-		except KeyError:
-			single_data['tvg-name'] = random_str()
-		try:
-			group[single_data['tvg-name']] = single_data
-		except KeyError:
+		if "http://" == line[:7] or "https://" == line[:8] or "mms://" == line[:6] or "rtsp://" == line[:7] or r"\\" == line[:2] or ":/" == line[1:3] or ":\\" == line[1:3]:
+			single_data['tvg-url'] = line.replace('\r', '')
 			try:
-				group[single_data['tvg-id']] = single_data
+				single_data['group-title']
 			except KeyError:
-				group[random_str()] = single_data
-		
-		print(">> Added: {}".format(single_data['tvg-name']))
-		single_data = {}
-
-def download_logo(link, path, name):
-	time.sleep(random.randint(0, 3))
-	open(path, 'wb').write(requests.get(link).content)
-	print(">> Downloaded Logo [{}]".format(name))
+				single_data['group-title'] = default_group
+			try:
+				single_data['tvg-name']
+			except KeyError:
+				single_data['tvg-name'] = random_str()
+			try:
+				group[single_data['tvg-name']] = single_data
+			except KeyError:
+				try:
+					group[single_data['tvg-id']] = single_data
+				except KeyError:
+					group[random_str()] = single_data
+			
+			print(">> Added: {} [Group: {}]".format(single_data['tvg-name'], single_data['group-title']))
+			single_data = {}
 
 multi_group = {}
 for target in group:
@@ -102,6 +104,9 @@ for target in group:
 	else:
 		multi_group[group[target]['group-title']] = [group[target]]
 
+mkdir(working_dir)
+os.chdir(working_dir)
+
 for group in multi_group:
 	mkdir(replace_name(group))
 	for each in multi_group[group]:
@@ -109,12 +114,15 @@ for group in multi_group:
 		open(replace_name(group) + "/" + replace_name(each['tvg-name']) + "/" + replace_name(each['tvg-name']) + '.strm', 'w').write(each['tvg-url'])
 		if is_download_logo:
 			try:
-				threading.Thread(target=download_logo, args=(each['tvg-logo'], replace_name(group) + "/" + replace_name(each['tvg-name']) + "/" + replace_name(each['tvg-name']) + '.tbn', each['tvg-name'], )).start()
+				if is_thread_download:
+					threading.Thread(target=download_logo, args=(each['tvg-logo'], replace_name(group) + "/" + replace_name(each['tvg-name']) + "/" + replace_name(each['tvg-name']) + '.tbn', each['tvg-name'], random.randint(0, 3), )).start()
+				else:
+					download_logo(each['tvg-logo'], replace_name(group) + "/" + replace_name(each['tvg-name']) + "/" + replace_name(each['tvg-name']) + '.tbn', each['tvg-name'], 0)
 			except KeyError:
 				pass
 
 while 1:
 	if threading.active_count() == 1:
-		input(">> Done!")
+		input(">> Done! ({})".format(working_dir))
 		break
 	time.sleep(1)
