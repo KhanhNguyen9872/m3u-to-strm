@@ -1,5 +1,11 @@
 # KhanhNguyen9872
-import requests, os, random, datetime, threading
+import os, random, datetime, threading, time
+
+try:
+	import requests
+except:
+	os.system("{} -m pip install requests".format(__import__('sys').executable))
+	import requests
 
 def random_str(length = 8):
 	return ''.join([random.choice('qwertyuiopasdfghjklzxcvbnm') for i in range(length)])
@@ -8,10 +14,13 @@ def mkdir(folder):
 	try:os.mkdir(folder)
 	except:pass
 
+def replace_name(name):
+	return str(name.replace(":", "-").replace("|", "_").replace("?", "_").replace("<", "(").replace(">",")").replace("/", "_").replace("\\", "_").replace("*", "_").replace("\"", "'"))
+
 data_m3u = open(input('m3u file: '), 'rb').read().decode('utf8').split('\n')
 is_download_logo = (True if input("Add with Logo? [Y/n]: ").lower() == "y" else False)
 
-working_dir = str(datetime.datetime.now()).split('.')[0]
+working_dir = replace_name(str(datetime.datetime.now()).split('.')[0]).replace(" ", "_")
 mkdir(working_dir)
 os.chdir(working_dir)
 
@@ -82,6 +91,7 @@ for line in data_m3u:
 		single_data = {}
 
 def download_logo(link, path, name):
+	time.sleep(random.randint(0, 3))
 	open(path, 'wb').write(requests.get(link).content)
 	print(">> Downloaded Logo [{}]".format(name))
 
@@ -93,12 +103,18 @@ for target in group:
 		multi_group[group[target]['group-title']] = [group[target]]
 
 for group in multi_group:
-	mkdir(group)
+	mkdir(replace_name(group))
 	for each in multi_group[group]:
-		mkdir(group + "/" + each['tvg-name'])
-		open(group + "/" + each['tvg-name'] + "/" + each['tvg-name'] + '.strm', 'w').write(each['tvg-url'])
+		mkdir(replace_name(group) + "/" + replace_name(each['tvg-name']))
+		open(replace_name(group) + "/" + replace_name(each['tvg-name']) + "/" + replace_name(each['tvg-name']) + '.strm', 'w').write(each['tvg-url'])
 		if is_download_logo:
 			try:
-				threading.Thread(target=download_logo, args=(each['tvg-logo'], group + "/" + each['tvg-name'] + "/" + each['tvg-name'] + '.tbn', each['tvg-name'], )).start()
+				threading.Thread(target=download_logo, args=(each['tvg-logo'], replace_name(group) + "/" + replace_name(each['tvg-name']) + "/" + replace_name(each['tvg-name']) + '.tbn', each['tvg-name'], )).start()
 			except KeyError:
 				pass
+
+while 1:
+	if threading.active_count() == 1:
+		input(">> Done!")
+		break
+	time.sleep(1)
